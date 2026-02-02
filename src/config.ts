@@ -1,11 +1,16 @@
 import { z } from "zod";
 
+const accountSchema = z.object({
+  name: z.string().min(1),
+  refreshToken: z.string().min(1),
+});
+
 const configSchema = z.object({
   // Gmail OAuth2
   gmail: z.object({
     clientId: z.string().min(1, "GMAIL_CLIENT_ID required"),
     clientSecret: z.string().min(1, "GMAIL_CLIENT_SECRET required"),
-    refreshToken: z.string().min(1, "GMAIL_REFRESH_TOKEN required"),
+    accounts: z.array(accountSchema).min(1, "At least one account required"),
   }),
 
   // AI Provider
@@ -23,14 +28,44 @@ const configSchema = z.object({
   }),
 });
 
+export type Account = z.infer<typeof accountSchema>;
 export type Config = z.infer<typeof configSchema>;
+
+const ACCOUNT_NAME_REGEX = /^[A-Za-z0-9_]+$/;
+
+function parseAccounts(): Account[] {
+  const accountNames = process.env.GMAIL_ACCOUNTS?.split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  if (!accountNames?.length) {
+    throw new Error("GMAIL_ACCOUNTS required (comma-separated account names)");
+  }
+
+  return accountNames.map((name) => {
+    if (!ACCOUNT_NAME_REGEX.test(name)) {
+      throw new Error(
+        `Invalid account name "${name}": only letters, digits, and underscores allowed`,
+      );
+    }
+
+    const envVar = `GMAIL_REFRESH_TOKEN_${name.toUpperCase()}`;
+    const refreshToken = process.env[envVar];
+
+    if (!refreshToken) {
+      throw new Error(`${envVar} required for account "${name}"`);
+    }
+
+    return { name, refreshToken };
+  });
+}
 
 export function loadConfig(): Config {
   const config = configSchema.parse({
     gmail: {
       clientId: process.env.GMAIL_CLIENT_ID,
       clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accounts: parseAccounts(),
     },
     ai: {
       provider: process.env.AI_PROVIDER,

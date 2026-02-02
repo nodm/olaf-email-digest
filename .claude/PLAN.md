@@ -6,8 +6,9 @@ Local CLI app that reads Gmail newsletters, generates AI-powered digest, emails 
 
 ## Decisions
 
-- **Filtering**: Gmail label → optional sender whitelist → Claude summarization
-- **Output**: Email digest sent to self
+- **Multi-account**: Support multiple Gmail accounts, same Google Cloud project
+- **Filtering**: Gmail label (same across accounts) → optional sender whitelist → Claude summarization
+- **Output**: Single digest email grouped by account, sent to primary account
 - **Scheduling**: Stateless CLI (`npm run digest`) - cloud-deployable
 - **Cleanup**: Move to trash (recoverable 30 days)
 
@@ -51,10 +52,14 @@ olaf-email-digest/
 ## Environment Variables
 
 ```bash
-# Gmail OAuth2
+# Gmail OAuth2 (shared across accounts)
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
-GMAIL_REFRESH_TOKEN=
+
+# Gmail Accounts (comma-separated names)
+GMAIL_ACCOUNTS=personal,work
+GMAIL_REFRESH_TOKEN_PERSONAL=  # per-account refresh tokens
+GMAIL_REFRESH_TOKEN_WORK=
 
 # LLM Provider (Vercel AI SDK - pick one)
 AI_PROVIDER=anthropic          # anthropic | openai | google | etc.
@@ -63,117 +68,61 @@ OPENAI_API_KEY=                # if using openai
 GOOGLE_GENERATIVE_AI_API_KEY=  # if using google
 
 # App config
-GMAIL_LABEL=Newsletters        # Label to process
-DIGEST_RECIPIENT=me            # "me" = authenticated user
+GMAIL_LABEL=Newsletters        # Label to process (same across accounts)
+DIGEST_RECIPIENT=me            # "me" = first account
 STATE_FILE=./state.json        # Processed email tracking
 SENDER_WHITELIST=./config/senders.json  # Optional
 ```
 
 ## Implementation Phases
 
-### Phase 1: Project Setup
+### Phase 1: Project Setup ✅
 
-**1. Init npm project**
-```bash
-npm init -y
-```
+- [x] Init npm project
+- [x] Configure package.json (ESM, scripts, Node 24+ `--env-file`)
+- [x] Install dependencies (googleapis, ai, @ai-sdk/anthropic, zod, tsx, biome)
+- [x] Configure tsconfig.json
+- [x] Configure biome.json
+- [x] Create .env.example
+- [x] Create src/config.ts (Zod validation)
 
-**2. Configure package.json**
-```json
-{
-  "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": {
-    "digest": "node --env-file=.env --import=tsx src/index.ts",
-    "auth": "node --env-file=.env --import=tsx scripts/auth.ts",
-    "lint": "biome check .",
-    "format": "biome format --write ."
-  }
-}
-```
+### Phase 2: Gmail OAuth Setup ✅
 
-Note: Node 24+ has native `--env-file` flag, no `dotenv` needed.
-
-**3. Install dependencies**
-
-Runtime:
-```bash
-npm i googleapis ai @ai-sdk/anthropic zod
-```
-
-Dev:
-```bash
-npm i -D typescript tsx @types/node @biomejs/biome
-```
-
-**4. Configure tsconfig.json**
-```json
-{
-  "compilerOptions": {
-    "target": "ES2024",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
-  "include": ["src", "scripts"]
-}
-```
-
-**5. Configure biome.json**
-```json
-{
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
-  "organizeImports": { "enabled": true },
-  "linter": { "enabled": true },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 }
-}
-```
-
-**6. Create .env.example**
-Document all required/optional env vars.
-
-**7. Create src/config.ts**
-Zod schema validating env vars, fail fast on invalid config.
-
-### Phase 2: Gmail OAuth Setup
-
-1. Create `scripts/auth.ts` - interactive OAuth flow
-2. Outputs refresh token to console/file
-3. Document Google Cloud project setup in README
+- [x] Create `scripts/auth.ts` - interactive OAuth flow
+- [x] Local callback server, outputs refresh token
+- [x] Add `--account` flag to auth script (e.g., `npm run auth -- --account=personal`)
+- [x] Update config.ts for multi-account support
+- [ ] Document Google Cloud project setup in README
 
 ### Phase 3: Gmail Integration
 
-1. `gmail/client.ts` - create authenticated client from refresh token
-2. `gmail/fetch.ts` - list messages by label, batch fetch full content
-3. `gmail/parse.ts` - extract subject, from, date, body (handle HTML/plain)
-4. `gmail/cleanup.ts` - move message IDs to trash
+- [ ] `gmail/client.ts` - create authenticated client per account
+- [ ] `gmail/fetch.ts` - list messages by label, batch fetch, tag with account name
+- [ ] `gmail/parse.ts` - extract subject, from, date, body (handle HTML/plain)
+- [ ] `gmail/cleanup.ts` - move message IDs to trash (per account)
 
 ### Phase 4: Digest Generation
 
-1. `digest/model.ts` - configure AI SDK provider based on env (anthropic/openai/google)
-2. `digest/summarize.ts` - use `generateText()` from AI SDK, get summary + key links
-3. `digest/compose.ts` - format all summaries into HTML email body
-4. User implements: summarization prompt (meaningful trade-offs here)
+- [ ] `digest/model.ts` - configure AI SDK provider based on env
+- [ ] `digest/summarize.ts` - use `generateText()` from AI SDK
+- [ ] `digest/compose.ts` - format summaries grouped by account into HTML email
 
 ### Phase 5: Send & State
 
-1. `send.ts` - send digest via Gmail API (`messages.send`)
-2. `state.ts` - load/save processed IDs to avoid reprocessing
+- [ ] `send.ts` - send digest via Gmail API (first account)
+- [ ] `state.ts` - load/save processed IDs namespaced by account
 
 ### Phase 6: CLI Entry Point
 
-1. `index.ts` - orchestrate full flow:
-   - Load config
-   - Fetch emails
-   - Filter by whitelist (if configured)
-   - Summarize each
-   - Compose & send digest
-   - Trash processed
-   - Update state
+- [ ] `index.ts` - orchestrate full flow:
+  - Load config (all accounts)
+  - Fetch emails from each account
+  - Filter by whitelist (if configured)
+  - Summarize each
+  - Compose digest (grouped by account)
+  - Send via first account
+  - Trash processed (per account)
+  - Update state (per account)
 
 ## Google Cloud Setup
 
@@ -186,10 +135,10 @@ Zod schema validating env vars, fail fast on invalid config.
 
 ## Verification
 
-1. `npm run auth` - completes OAuth, outputs refresh token
-2. `npm run digest` with test label - processes emails, sends digest
-3. Check inbox for digest email
-4. Check Gmail trash for processed emails
+1. `npm run auth -- --account=personal` - completes OAuth for each account
+2. `npm run digest` with test label - processes emails from all accounts
+3. Check first account inbox for digest email (grouped by account)
+4. Check Gmail trash in each account for processed emails
 
 ## Additional Decisions
 
