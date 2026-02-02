@@ -6,8 +6,9 @@ Local CLI app that reads Gmail newsletters, generates AI-powered digest, emails 
 
 ## Decisions
 
-- **Filtering**: Gmail label → optional sender whitelist → Claude summarization
-- **Output**: Email digest sent to self
+- **Multi-account**: Support multiple Gmail accounts, same Google Cloud project
+- **Filtering**: Gmail label (same across accounts) → optional sender whitelist → Claude summarization
+- **Output**: Single digest email grouped by account, sent to primary account
 - **Scheduling**: Stateless CLI (`npm run digest`) - cloud-deployable
 - **Cleanup**: Move to trash (recoverable 30 days)
 
@@ -51,10 +52,14 @@ olaf-email-digest/
 ## Environment Variables
 
 ```bash
-# Gmail OAuth2
+# Gmail OAuth2 (shared across accounts)
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
-GMAIL_REFRESH_TOKEN=
+
+# Gmail Accounts (comma-separated names)
+GMAIL_ACCOUNTS=personal,work
+GMAIL_REFRESH_TOKEN_PERSONAL=  # per-account refresh tokens
+GMAIL_REFRESH_TOKEN_WORK=
 
 # LLM Provider (Vercel AI SDK - pick one)
 AI_PROVIDER=anthropic          # anthropic | openai | google | etc.
@@ -63,8 +68,8 @@ OPENAI_API_KEY=                # if using openai
 GOOGLE_GENERATIVE_AI_API_KEY=  # if using google
 
 # App config
-GMAIL_LABEL=Newsletters        # Label to process
-DIGEST_RECIPIENT=me            # "me" = authenticated user
+GMAIL_LABEL=Newsletters        # Label to process (same across accounts)
+DIGEST_RECIPIENT=me            # "me" = first account
 STATE_FILE=./state.json        # Processed email tracking
 SENDER_WHITELIST=./config/senders.json  # Optional
 ```
@@ -85,36 +90,38 @@ SENDER_WHITELIST=./config/senders.json  # Optional
 
 - [x] Create `scripts/auth.ts` - interactive OAuth flow
 - [x] Local callback server, outputs refresh token
+- [ ] Add `--account` flag to auth script (e.g., `npm run auth -- --account=personal`)
 - [ ] Document Google Cloud project setup in README
 
 ### Phase 3: Gmail Integration
 
-- [ ] `gmail/client.ts` - create authenticated client from refresh token
-- [ ] `gmail/fetch.ts` - list messages by label, batch fetch full content
+- [ ] `gmail/client.ts` - create authenticated client per account
+- [ ] `gmail/fetch.ts` - list messages by label, batch fetch, tag with account name
 - [ ] `gmail/parse.ts` - extract subject, from, date, body (handle HTML/plain)
-- [ ] `gmail/cleanup.ts` - move message IDs to trash
+- [ ] `gmail/cleanup.ts` - move message IDs to trash (per account)
 
 ### Phase 4: Digest Generation
 
 - [ ] `digest/model.ts` - configure AI SDK provider based on env
 - [ ] `digest/summarize.ts` - use `generateText()` from AI SDK
-- [ ] `digest/compose.ts` - format all summaries into HTML email body
+- [ ] `digest/compose.ts` - format summaries grouped by account into HTML email
 
 ### Phase 5: Send & State
 
-- [ ] `send.ts` - send digest via Gmail API (`messages.send`)
-- [ ] `state.ts` - load/save processed IDs to avoid reprocessing
+- [ ] `send.ts` - send digest via Gmail API (first account)
+- [ ] `state.ts` - load/save processed IDs namespaced by account
 
 ### Phase 6: CLI Entry Point
 
 - [ ] `index.ts` - orchestrate full flow:
-  - Load config
-  - Fetch emails
+  - Load config (all accounts)
+  - Fetch emails from each account
   - Filter by whitelist (if configured)
   - Summarize each
-  - Compose & send digest
-  - Trash processed
-  - Update state
+  - Compose digest (grouped by account)
+  - Send via first account
+  - Trash processed (per account)
+  - Update state (per account)
 
 ## Google Cloud Setup
 
@@ -127,10 +134,10 @@ SENDER_WHITELIST=./config/senders.json  # Optional
 
 ## Verification
 
-1. `npm run auth` - completes OAuth, outputs refresh token
-2. `npm run digest` with test label - processes emails, sends digest
-3. Check inbox for digest email
-4. Check Gmail trash for processed emails
+1. `npm run auth -- --account=personal` - completes OAuth for each account
+2. `npm run digest` with test label - processes emails from all accounts
+3. Check first account inbox for digest email (grouped by account)
+4. Check Gmail trash in each account for processed emails
 
 ## Additional Decisions
 
