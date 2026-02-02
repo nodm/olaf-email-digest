@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createServer } from "node:http";
+import { parseArgs } from "node:util";
 import { google } from "googleapis";
 
 const SCOPES = [
@@ -10,6 +11,20 @@ const SCOPES = [
 
 const PORT = 3000;
 const REDIRECT_URI = `http://localhost:${PORT}/callback`;
+
+// Parse --account flag
+const { values } = parseArgs({
+  options: {
+    account: { type: "string", short: "a" },
+  },
+});
+
+const accountName = values.account;
+if (!accountName) {
+  console.error("Usage: npm run auth -- --account=<name>");
+  console.error("Example: npm run auth -- --account=personal");
+  process.exit(1);
+}
 
 const clientId = process.env.GMAIL_CLIENT_ID;
 const clientSecret = process.env.GMAIL_CLIENT_SECRET;
@@ -31,6 +46,7 @@ const authUrl = oauth2Client.generateAuthUrl({
   prompt: "consent",
 });
 
+console.log(`Authorizing account "${accountName}"...\n`);
 console.log("Opening browser for authorization...\n");
 console.log("If browser doesn't open, visit:\n");
 console.log(authUrl);
@@ -80,9 +96,10 @@ const server = createServer(async (req, res) => {
       "<h1>Authorization successful!</h1><p>You can close this window.</p>",
     );
 
-    console.log("Authorization successful!\n");
+    const envVar = `GMAIL_REFRESH_TOKEN_${accountName.toUpperCase()}`;
+    console.log(`Authorization successful for account "${accountName}"!\n`);
     console.log("Add this to your .env file:\n");
-    console.log(`GMAIL_REFRESH_TOKEN=${tokens.refresh_token}`);
+    console.log(`${envVar}=${tokens.refresh_token}`);
     console.log("");
 
     server.close();
