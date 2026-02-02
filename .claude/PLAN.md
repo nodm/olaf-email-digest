@@ -13,11 +13,12 @@ Local CLI app that reads Gmail newsletters, generates AI-powered digest, emails 
 
 ## Tech Stack
 
-- TypeScript + Node.js (ESM)
+- TypeScript + Node.js 24+ (ESM)
 - `googleapis` - Gmail API
 - `ai` + `@ai-sdk/anthropic` (or `@ai-sdk/openai`, etc.) - Vercel AI SDK for LLM abstraction
 - `zod` - config validation
 - `tsx` - dev runner
+- `@biomejs/biome` - linting & formatting
 
 ## Project Structure
 
@@ -43,6 +44,7 @@ olaf-email-digest/
 ├── .env.example
 ├── package.json
 ├── tsconfig.json
+├── biome.json
 └── README.md
 ```
 
@@ -71,10 +73,71 @@ SENDER_WHITELIST=./config/senders.json  # Optional
 
 ### Phase 1: Project Setup
 
-1. Init npm project with TypeScript (ESM)
-2. Install deps: `googleapis`, `ai`, `@ai-sdk/anthropic`, `zod`, `dotenv`, `tsx`
-3. Configure `tsconfig.json`, `.env.example`
-4. Create `config.ts` with zod validation
+**1. Init npm project**
+```bash
+npm init -y
+```
+
+**2. Configure package.json**
+```json
+{
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "digest": "node --env-file=.env --import=tsx src/index.ts",
+    "auth": "node --env-file=.env --import=tsx scripts/auth.ts",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  }
+}
+```
+
+Note: Node 24+ has native `--env-file` flag, no `dotenv` needed.
+
+**3. Install dependencies**
+
+Runtime:
+```bash
+npm i googleapis ai @ai-sdk/anthropic zod
+```
+
+Dev:
+```bash
+npm i -D typescript tsx @types/node @biomejs/biome
+```
+
+**4. Configure tsconfig.json**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src", "scripts"]
+}
+```
+
+**5. Configure biome.json**
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "organizeImports": { "enabled": true },
+  "linter": { "enabled": true },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 }
+}
+```
+
+**6. Create .env.example**
+Document all required/optional env vars.
+
+**7. Create src/config.ts**
+Zod schema validating env vars, fail fast on invalid config.
 
 ### Phase 2: Gmail OAuth Setup
 
