@@ -115,7 +115,7 @@ const server = createServer(async (req, res) => {
         "This can happen if the app was previously authorized and Google didn't issue a new token.",
       );
       console.warn(
-        "Try revoking access at https://myaccount.google.com/permissions, then run this script again.",
+        "Try revoking access at https://myaccount.google.com/permissions (search for your app), then run this script again.",
       );
       console.warn(`\nOnce obtained, set it as ${envVar} in your .env file.`);
     }
