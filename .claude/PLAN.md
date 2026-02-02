@@ -71,109 +71,50 @@ SENDER_WHITELIST=./config/senders.json  # Optional
 
 ## Implementation Phases
 
-### Phase 1: Project Setup
+### Phase 1: Project Setup ✅
 
-**1. Init npm project**
-```bash
-npm init -y
-```
+- [x] Init npm project
+- [x] Configure package.json (ESM, scripts, Node 24+ `--env-file`)
+- [x] Install dependencies (googleapis, ai, @ai-sdk/anthropic, zod, tsx, biome)
+- [x] Configure tsconfig.json
+- [x] Configure biome.json
+- [x] Create .env.example
+- [x] Create src/config.ts (Zod validation)
 
-**2. Configure package.json**
-```json
-{
-  "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": {
-    "digest": "node --env-file=.env --import=tsx src/index.ts",
-    "auth": "node --env-file=.env --import=tsx scripts/auth.ts",
-    "lint": "biome check .",
-    "format": "biome format --write ."
-  }
-}
-```
+### Phase 2: Gmail OAuth Setup ✅
 
-Note: Node 24+ has native `--env-file` flag, no `dotenv` needed.
-
-**3. Install dependencies**
-
-Runtime:
-```bash
-npm i googleapis ai @ai-sdk/anthropic zod
-```
-
-Dev:
-```bash
-npm i -D typescript tsx @types/node @biomejs/biome
-```
-
-**4. Configure tsconfig.json**
-```json
-{
-  "compilerOptions": {
-    "target": "ES2024",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
-  "include": ["src", "scripts"]
-}
-```
-
-**5. Configure biome.json**
-```json
-{
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
-  "organizeImports": { "enabled": true },
-  "linter": { "enabled": true },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 }
-}
-```
-
-**6. Create .env.example**
-Document all required/optional env vars.
-
-**7. Create src/config.ts**
-Zod schema validating env vars, fail fast on invalid config.
-
-### Phase 2: Gmail OAuth Setup
-
-1. Create `scripts/auth.ts` - interactive OAuth flow
-2. Outputs refresh token to console/file
-3. Document Google Cloud project setup in README
+- [x] Create `scripts/auth.ts` - interactive OAuth flow
+- [x] Local callback server, outputs refresh token
+- [ ] Document Google Cloud project setup in README
 
 ### Phase 3: Gmail Integration
 
-1. `gmail/client.ts` - create authenticated client from refresh token
-2. `gmail/fetch.ts` - list messages by label, batch fetch full content
-3. `gmail/parse.ts` - extract subject, from, date, body (handle HTML/plain)
-4. `gmail/cleanup.ts` - move message IDs to trash
+- [ ] `gmail/client.ts` - create authenticated client from refresh token
+- [ ] `gmail/fetch.ts` - list messages by label, batch fetch full content
+- [ ] `gmail/parse.ts` - extract subject, from, date, body (handle HTML/plain)
+- [ ] `gmail/cleanup.ts` - move message IDs to trash
 
 ### Phase 4: Digest Generation
 
-1. `digest/model.ts` - configure AI SDK provider based on env (anthropic/openai/google)
-2. `digest/summarize.ts` - use `generateText()` from AI SDK, get summary + key links
-3. `digest/compose.ts` - format all summaries into HTML email body
-4. User implements: summarization prompt (meaningful trade-offs here)
+- [ ] `digest/model.ts` - configure AI SDK provider based on env
+- [ ] `digest/summarize.ts` - use `generateText()` from AI SDK
+- [ ] `digest/compose.ts` - format all summaries into HTML email body
 
 ### Phase 5: Send & State
 
-1. `send.ts` - send digest via Gmail API (`messages.send`)
-2. `state.ts` - load/save processed IDs to avoid reprocessing
+- [ ] `send.ts` - send digest via Gmail API (`messages.send`)
+- [ ] `state.ts` - load/save processed IDs to avoid reprocessing
 
 ### Phase 6: CLI Entry Point
 
-1. `index.ts` - orchestrate full flow:
-   - Load config
-   - Fetch emails
-   - Filter by whitelist (if configured)
-   - Summarize each
-   - Compose & send digest
-   - Trash processed
-   - Update state
+- [ ] `index.ts` - orchestrate full flow:
+  - Load config
+  - Fetch emails
+  - Filter by whitelist (if configured)
+  - Summarize each
+  - Compose & send digest
+  - Trash processed
+  - Update state
 
 ## Google Cloud Setup
 
