@@ -31,16 +31,24 @@ const configSchema = z.object({
 export type Account = z.infer<typeof accountSchema>;
 export type Config = z.infer<typeof configSchema>;
 
+const ACCOUNT_NAME_REGEX = /^[A-Za-z0-9_]+$/;
+
 function parseAccounts(): Account[] {
-  const accountNames = process.env.GMAIL_ACCOUNTS?.split(",").map((s) =>
-    s.trim(),
-  );
+  const accountNames = process.env.GMAIL_ACCOUNTS?.split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   if (!accountNames?.length) {
     throw new Error("GMAIL_ACCOUNTS required (comma-separated account names)");
   }
 
   return accountNames.map((name) => {
+    if (!ACCOUNT_NAME_REGEX.test(name)) {
+      throw new Error(
+        `Invalid account name "${name}": only letters, digits, and underscores allowed`,
+      );
+    }
+
     const envVar = `GMAIL_REFRESH_TOKEN_${name.toUpperCase()}`;
     const refreshToken = process.env[envVar];
 

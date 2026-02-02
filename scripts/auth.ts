@@ -26,6 +26,13 @@ if (!accountName) {
   process.exit(1);
 }
 
+if (!/^[A-Za-z0-9_]+$/.test(accountName)) {
+  console.error(
+    "Invalid account name: only letters, digits, and underscores allowed",
+  );
+  process.exit(1);
+}
+
 const clientId = process.env.GMAIL_CLIENT_ID;
 const clientSecret = process.env.GMAIL_CLIENT_SECRET;
 
@@ -98,12 +105,24 @@ const server = createServer(async (req, res) => {
 
     const envVar = `GMAIL_REFRESH_TOKEN_${accountName.toUpperCase()}`;
     console.log(`Authorization successful for account "${accountName}"!\n`);
-    console.log("Add this to your .env file:\n");
-    console.log(`${envVar}=${tokens.refresh_token}`);
+
+    if (tokens.refresh_token) {
+      console.log("Add this to your .env file:\n");
+      console.log(`${envVar}=${tokens.refresh_token}`);
+    } else {
+      console.warn("No refresh token returned by Google.");
+      console.warn(
+        "This can happen if the app was previously authorized and Google didn't issue a new token.",
+      );
+      console.warn(
+        "Try revoking access at https://myaccount.google.com/permissions, then run this script again.",
+      );
+      console.warn(`\nOnce obtained, set it as ${envVar} in your .env file.`);
+    }
     console.log("");
 
     server.close();
-    process.exit(0);
+    process.exit(tokens.refresh_token ? 0 : 1);
   } catch (err) {
     res.writeHead(500);
     res.end("Failed to exchange code for tokens");
