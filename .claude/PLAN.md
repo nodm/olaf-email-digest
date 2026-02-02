@@ -90,7 +90,8 @@ SENDER_WHITELIST=./config/senders.json  # Optional
 
 - [x] Create `scripts/auth.ts` - interactive OAuth flow
 - [x] Local callback server, outputs refresh token
-- [ ] Add `--account` flag to auth script (e.g., `npm run auth -- --account=personal`)
+- [x] Add `--account` flag to auth script (e.g., `npm run auth -- --account=personal`)
+- [x] Update config.ts for multi-account support
 - [ ] Document Google Cloud project setup in README
 
 ### Phase 3: Gmail Integration
